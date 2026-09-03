@@ -50,11 +50,11 @@ if "cache" not in st.session_state:
     st.session_state.cache = {}
 
 # ----------------------------
-# SIDEBAR - API KEY INPUT
+# API KEY (loaded from Streamlit Secrets - user never sees or enters it)
 # ----------------------------
+api_key = st.secrets.get("GROQ_API_KEY", None)
+
 st.sidebar.title("Settings")
-api_key = st.sidebar.text_input("Enter your Groq API Key", type="password")
-st.sidebar.markdown("[Get a free API key (no card needed)](https://console.groq.com/keys)")
 st.sidebar.markdown(f"Requests used this session: {st.session_state.request_count}/{DAILY_LIMIT_PER_SESSION}")
 
 # ----------------------------
@@ -71,7 +71,7 @@ if uploaded_file is not None:
 
     if st.button("Check Safety"):
         if not api_key:
-            st.error("Please enter your Groq API key in the sidebar first.")
+            st.error("The app is not configured properly. Please contact the app owner.")
         elif st.session_state.request_count >= DAILY_LIMIT_PER_SESSION:
             st.warning("Daily limit reached for this session. Please try again later.")
         else:
