@@ -24,6 +24,7 @@ st.set_page_config(page_title="Food Safety Checker", page_icon="🍗", layout="c
 
 MODEL_NAME = "qwen/qwen3.6-27b"       # vision-capable model on Groq
 MAX_IMAGE_SIZE = (512, 512)           # resize to save tokens
+DAILY_LIMIT_PER_SESSION = 10          # simple per-session rate limit
 
 PROMPT = """
 Look at the food image (meat, fish, egg, vegetable, fruit, etc.) and judge if
@@ -40,8 +41,10 @@ Keep the whole reply under 5 lines total.
 """
 
 # ----------------------------
-# SESSION STATE (cache to avoid repeat calls on same image)
+# SESSION STATE (basic rate limiting + cache)
 # ----------------------------
+if "request_count" not in st.session_state:
+    st.session_state.request_count = 0
 if "cache" not in st.session_state:
     st.session_state.cache = {}
 
@@ -105,7 +108,7 @@ if uploaded_file is not None:
                                 }
                             ],
                             temperature=0.3,
-                            max_completion_tokens=1024,
+                            max_completion_tokens=300,
                         )
 
                         result_text = completion.choices[0].message.content
@@ -113,6 +116,7 @@ if uploaded_file is not None:
                         if "</think>" in result_text:
                             result_text = result_text.split("</think>")[-1].strip()
                         st.session_state.cache[cache_key] = result_text
+                        st.session_state.request_count += 1
 
                 # ---- Display result ----
                 st.subheader("Result")
