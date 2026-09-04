@@ -27,18 +27,17 @@ MAX_IMAGE_SIZE = (512, 512)           # resize to save tokens
 DAILY_LIMIT_PER_SESSION = 10          # simple per-session rate limit
 
 PROMPT = """
-You are a food safety inspection assistant. Look carefully at the image of
-the food item provided (it could be meat, fish, egg, vegetable, fruit, or
-another food item).
+Look at the food image (meat, fish, egg, vegetable, fruit, etc.) and judge if
+it is safe to eat.
 
-Answer STRICTLY in this format:
+Reply in EXACTLY this short format, nothing else. No thinking, no analysis
+steps, no extra explanation - just the final answer below:
 
-Verdict: <Safe / Not Safe / Uncertain>
-Reason: <what visual signs led to this verdict - color, texture, spots, mold, discoloration, etc.>
-Risk Level: <Low / Medium / High>
-Note: <one line disclaimer that this is a screening tool, not a substitute for professional inspection>
+Verdict: Safe / Not Safe / Uncertain
+Why: one short sentence with the main visible reason
+Risk: Low / Medium / High
 
-Be concise. If the image is unclear or not a food item, say so in the Verdict.
+Keep the whole reply under 5 lines total.
 """
 
 # ----------------------------
@@ -116,6 +115,9 @@ if uploaded_file is not None:
                         )
 
                         result_text = completion.choices[0].message.content
+                        # Strip any hidden "thinking" section some models add
+                        if "</think>" in result_text:
+                            result_text = result_text.split("</think>")[-1].strip()
                         st.session_state.cache[cache_key] = result_text
                         st.session_state.request_count += 1
 
