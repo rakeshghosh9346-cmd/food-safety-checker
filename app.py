@@ -4,11 +4,6 @@ Food Safety Checker - AI-powered tool to check if food items
 
 Uses Groq API with Qwen vision model (no dataset/training required).
 Free API key, no card needed: https://console.groq.com
-
-Setup:
-1. pip install streamlit groq pillow
-2. Get a free API key from https://console.groq.com/keys
-3. Run: streamlit run app.py
 """
 
 import streamlit as st
@@ -22,9 +17,8 @@ import base64
 # ----------------------------
 st.set_page_config(page_title="Food Safety Checker", page_icon="🍗", layout="centered")
 
-MODEL_NAME = "qwen/qwen3.6-27b"       # vision-capable model on Groq
-MAX_IMAGE_SIZE = (512, 512)           # resize to save tokens
-DAILY_LIMIT_PER_SESSION = 10          # simple per-session rate limit
+MODEL_NAME = "qwen/qwen3.6-27b"
+MAX_IMAGE_SIZE = (512, 512)
 
 PROMPT = """
 Look at the food image (meat, fish, egg, vegetable, fruit, etc.) and judge if
@@ -41,7 +35,7 @@ Keep the whole reply under 5 lines total.
 """
 
 # ----------------------------
-# SESSION STATE (basic rate limiting + cache)
+# SESSION STATE
 # ----------------------------
 if "request_count" not in st.session_state:
     st.session_state.request_count = 0
@@ -49,7 +43,7 @@ if "cache" not in st.session_state:
     st.session_state.cache = {}
 
 # ----------------------------
-# API KEY (loaded from Streamlit Secrets - user never sees or enters it)
+# API KEY (from Streamlit Secrets)
 # ----------------------------
 api_key = st.secrets.get("GROQ_API_KEY", None)
 
@@ -72,18 +66,15 @@ if uploaded_file is not None:
             st.error("The app is not configured properly. Please contact the app owner.")
         else:
             try:
-                # ---- Resize image to save tokens ----
                 resized_image = image.copy()
                 resized_image.thumbnail(MAX_IMAGE_SIZE)
 
-                # ---- Convert to base64 data URL (Groq needs this format) ----
                 buf = io.BytesIO()
                 resized_image.save(buf, format="JPEG")
                 img_bytes = buf.getvalue()
                 b64_str = base64.b64encode(img_bytes).decode("utf-8")
                 image_data_url = f"data:image/jpeg;base64,{b64_str}"
 
-                # ---- Simple cache key (based on image bytes hash) ----
                 cache_key = hash(img_bytes)
 
                 if cache_key in st.session_state.cache:
@@ -112,13 +103,14 @@ if uploaded_file is not None:
                         )
 
                         result_text = completion.choices[0].message.content
-                        # Strip any hidden "thinking" section some models add
-                        if "</think>" in result_text:
-                            result_text = result_text.split("</think>")[-1].strip()
+                        # Keep only the final answer - cut everything before "Verdict:"
+                        # This removes any hidden reasoning/thinking text some models add
+                        if "Verdict:" in result_text:
+                            result_text = "Verdict:" + result_text.split("Verdict:", 1)[1]
+                        result_text = result_text.replace("</think>", "").replace("<think>", "").strip()
                         st.session_state.cache[cache_key] = result_text
                         st.session_state.request_count += 1
 
-                # ---- Display result ----
                 st.subheader("Result")
                 st.markdown(result_text)
 
